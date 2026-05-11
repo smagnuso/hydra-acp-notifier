@@ -1,0 +1,37 @@
+{
+  "name": "@hydra-acp/notifier",
+  "version": "0.1.0",
+  "description": "Desktop notification extension for hydra-acp — fires on turn complete and other configurable session events.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "dist/index.js",
+  "bin": {
+    "hydra-acp-notifier": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -p . --watch",
+    "start": "node dist/index.js",
+    "dev": "tsc -p . && node dist/index.js",
+    "test": "node --test --import tsx 'test/**/*.test.ts'",
+    "lint": "tsc -p . --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.6.3"
+  }
+}
