@@ -100,7 +100,6 @@ function defaultAwaitingPermission(ev: NotifyEvent): Notification {
   return {
     title: `🔒 ${titleParts.join(" · ")}`,
     body: `Awaiting approval: ${desc}`,
-    urgency: "critical",
   };
 }
 

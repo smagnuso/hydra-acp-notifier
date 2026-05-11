@@ -303,7 +303,7 @@ test("onAwaitingPermission: routes the toolCall through the rule", async () => {
     "🔒 claude-acp · abcdef01 · Investigating flaky CI",
   );
   assert.equal(calls[0]?.body, "Awaiting approval: Run ping -c 1");
-  assert.equal(calls[0]?.urgency, "critical");
+  assert.equal(calls[0]?.urgency, undefined);
 });
 
 test("DEFAULT_RULE: awaiting_permission falls back to name/kind when no title", async () => {

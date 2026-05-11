@@ -79,9 +79,8 @@ Fires `notify-send` on two events for every session:
 **2. `awaiting_permission`** — a `session/request_permission` has been outstanding for `HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS` (default `5000`). Synthesized by the notifier when no client has answered within the delay.
 - **Title**: `🔒 <agentId> · <short-session-id> · <heading>` (same fallback chain).
 - **Body**: `Awaiting approval: <toolCall.title or .name or .kind, falls back to "tool call">`.
-- **Urgency**: `critical` (notify-send keeps the bubble sticky on Linux).
 
-If the matching `session/permission_resolved` arrives before the delay elapses, no notification fires.
+If the matching `session/permission_resolved` arrives before the delay elapses, no notification fires. The default uses normal urgency so the bubble auto-dismisses; set `urgency: "critical"` from your own rule if you want it sticky.
 
 On macOS, `osascript` is used instead. The default works without any config file — drop one in to customize.
 
