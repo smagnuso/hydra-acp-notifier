@@ -1,5 +1,11 @@
 import { AcpAttach } from "./acp/attach.js";
-import type { JsonRpcNotification } from "./acp/protocol.js";
+import type {
+  JsonRpcNotification,
+  JsonRpcRequest,
+  PermissionRequestParams,
+  PermissionResolvedParams,
+} from "./acp/protocol.js";
+import { PermissionWatcher } from "./permission-watcher.js";
 import { EventRouter, type SessionMeta } from "./router.js";
 import type { RuleFunction } from "./rule.js";
 import { logger } from "./util/log.js";
@@ -11,14 +17,17 @@ export interface BridgeOptions {
   token: string;
   meta: SessionMeta;
   getRule: () => RuleFunction;
+  awaitingPermissionMs: number;
 }
 
-// One bridge per discovered session. Observer-role attach, listens to
-// session/update notifications, dispatches them to EventRouter.
-// SIGHUP-driven rule reloads propagate via the getRule thunk.
+// One bridge per discovered session. Listens to session/update for
+// turn_complete (etc.) and to session/request_permission for the
+// awaiting-approval timer. SIGHUP-driven rule reloads propagate via
+// the getRule thunk.
 export class NotifierBridge {
   private readonly attach: AcpAttach;
   private readonly router: EventRouter;
+  private readonly watcher: PermissionWatcher;
   private stopped = false;
 
   constructor(private readonly opts: BridgeOptions) {
@@ -28,10 +37,19 @@ export class NotifierBridge {
       token: opts.token,
     });
     this.router = new EventRouter(opts.getRule(), opts.meta, log);
+    this.watcher = new PermissionWatcher(
+      opts.awaitingPermissionMs,
+      (toolCall) => void this.router.onAwaitingPermission(toolCall),
+      log,
+    );
   }
 
   start(): void {
     this.attach.on("notification", (n) => this.onNotification(n));
+    this.attach.on("request", (r) => this.onRequest(r));
+    this.attach.on("close", () => {
+      this.watcher.shutdown();
+    });
     this.attach.on("error", (err) => {
       log.warn(`attach error ${this.opts.meta.sessionId}: ${err.message}`);
     });
@@ -43,6 +61,7 @@ export class NotifierBridge {
       return;
     }
     this.stopped = true;
+    this.watcher.shutdown();
     this.attach.stop();
   }
 
@@ -55,10 +74,23 @@ export class NotifierBridge {
   }
 
   private onNotification(n: JsonRpcNotification): void {
-    if (n.method !== "session/update") {
+    if (n.method === "session/update") {
+      const params = (n.params ?? {}) as Record<string, unknown>;
+      void this.router.onSessionUpdate(params);
       return;
     }
-    const params = (n.params ?? {}) as Record<string, unknown>;
-    void this.router.onSessionUpdate(params);
+    if (n.method === "session/permission_resolved") {
+      const params = (n.params ?? {}) as PermissionResolvedParams;
+      this.watcher.onResolved(params);
+    }
+  }
+
+  private onRequest(r: JsonRpcRequest): void {
+    if (r.method === "session/request_permission") {
+      const params = (r.params ?? {}) as PermissionRequestParams;
+      this.watcher.onRequest(params, (result) => this.attach.reply(r.id, result));
+      return;
+    }
+    this.attach.replyError(r.id, -32601, `method not implemented: ${r.method}`);
   }
 }

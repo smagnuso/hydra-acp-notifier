@@ -278,3 +278,60 @@ test("DEFAULT_RULE: skips non-turn_complete events", async () => {
   });
   assert.equal(calls.length, 0);
 });
+
+test("onAwaitingPermission: routes the toolCall through the rule", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    {
+      sessionId: "hydra_session_abcdef0123",
+      cwd: "/home/me/proj",
+      agentId: "claude-acp",
+      title: "Investigating flaky CI",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onAwaitingPermission({
+    toolCallId: "tc_1",
+    title: "Run ping -c 1",
+    kind: "execute",
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0]?.title,
+    "🔒 claude-acp · abcdef01 · Investigating flaky CI",
+  );
+  assert.equal(calls[0]?.body, "Awaiting approval: Run ping -c 1");
+  assert.equal(calls[0]?.urgency, "critical");
+});
+
+test("DEFAULT_RULE: awaiting_permission falls back to name/kind when no title", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    { sessionId: "hydra_session_abcdef0123", agentId: "claude-acp" },
+    silentLogger(),
+    fn,
+  );
+  await router.onAwaitingPermission({
+    toolCallId: "tc_2",
+    name: "edit_file",
+    kind: "edit",
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.body, "Awaiting approval: edit_file");
+});
+
+test("DEFAULT_RULE: awaiting_permission with no descriptors falls back to 'tool call'", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    { sessionId: "hydra_session_abcdef0123", agentId: "claude-acp" },
+    silentLogger(),
+    fn,
+  );
+  await router.onAwaitingPermission({ toolCallId: "tc_3" });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.body, "Awaiting approval: tool call");
+});

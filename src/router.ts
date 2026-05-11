@@ -47,24 +47,41 @@ export class EventRouter {
     if (!kind) {
       return;
     }
-    const event: NotifyEvent = {
+    await this.runRule({
       sessionId: this.meta.sessionId,
       kind,
       raw: update,
-      meta: {
-        ...(this.meta.cwd !== undefined ? { cwd: this.meta.cwd } : {}),
-        ...(this.meta.agentId !== undefined
-          ? { agentId: this.meta.agentId }
-          : {}),
-        ...(this.meta.title !== undefined ? { title: this.meta.title } : {}),
-      },
+      meta: this.eventMeta(),
+    });
+  }
+
+  // Fired by PermissionWatcher when a session/request_permission has
+  // been outstanding longer than the configured delay. Routes through
+  // the user's rule fn just like session/update events.
+  async onAwaitingPermission(toolCall: Record<string, unknown>): Promise<void> {
+    await this.runRule({
+      sessionId: this.meta.sessionId,
+      kind: "awaiting_permission",
+      raw: toolCall,
+      meta: this.eventMeta(),
+    });
+  }
+
+  private eventMeta(): NotifyEvent["meta"] {
+    return {
+      ...(this.meta.cwd !== undefined ? { cwd: this.meta.cwd } : {}),
+      ...(this.meta.agentId !== undefined ? { agentId: this.meta.agentId } : {}),
+      ...(this.meta.title !== undefined ? { title: this.meta.title } : {}),
     };
+  }
+
+  private async runRule(event: NotifyEvent): Promise<void> {
     let result: Notification | null | undefined;
     try {
       result = await this.rule(event);
     } catch (err) {
       this.log.warn(
-        `rule threw on kind=${kind} sessionId=${this.meta.sessionId}: ${(err as Error).message}; skipping notification`,
+        `rule threw on kind=${event.kind} sessionId=${this.meta.sessionId}: ${(err as Error).message}; skipping notification`,
       );
       return;
     }
@@ -73,12 +90,12 @@ export class EventRouter {
     }
     if (!result.title || typeof result.title !== "string") {
       this.log.warn(
-        `rule returned a notification with no title for kind=${kind}; skipping`,
+        `rule returned a notification with no title for kind=${event.kind}; skipping`,
       );
       return;
     }
     this.log.info(
-      `notify kind=${kind} session=${this.meta.sessionId.slice(0, 8)} title="${result.title}"`,
+      `notify kind=${event.kind} session=${this.meta.sessionId.slice(0, 8)} title="${result.title}"`,
     );
     this.dispatch(result);
   }

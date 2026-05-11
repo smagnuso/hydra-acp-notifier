@@ -39,6 +39,7 @@ async function main(): Promise<void> {
           ...(session.title !== undefined ? { title: session.title } : {}),
         },
         getRule: () => currentRule,
+        awaitingPermissionMs: config.awaitingPermissionMs,
       });
       bridges.set(session.sessionId, bridge);
       bridge.start();

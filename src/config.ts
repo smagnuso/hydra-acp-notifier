@@ -11,6 +11,9 @@ export interface Config {
   // notifier falls back to a sensible default (fire on turn_complete
   // with a tidy title/body); see `defaultDecide` in router.ts.
   ruleConfigPath: string;
+  // How long an unanswered session/request_permission has to sit before
+  // we fire an "Awaiting approval" notification.
+  awaitingPermissionMs: number;
   debug: boolean;
 }
 
@@ -64,6 +67,10 @@ export function loadConfig(): Config {
     hydraToken,
     hydraPollIntervalMs: intEnv("HYDRA_ACP_NOTIFIER_POLL_MS", 2000),
     ruleConfigPath,
+    awaitingPermissionMs: intEnv(
+      "HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS",
+      5000,
+    ),
     debug: boolEnv("DEBUG", false),
   };
 }

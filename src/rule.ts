@@ -52,6 +52,9 @@ function shortSessionId(sessionId: string): string {
 }
 
 export const DEFAULT_RULE: RuleFunction = (ev) => {
+  if (ev.kind === "awaiting_permission") {
+    return defaultAwaitingPermission(ev);
+  }
   if (ev.kind !== "turn_complete") {
     return null;
   }
@@ -74,6 +77,32 @@ export const DEFAULT_RULE: RuleFunction = (ev) => {
   };
   return result;
 };
+
+function defaultAwaitingPermission(ev: NotifyEvent): Notification {
+  const cwdBase = ev.meta.cwd
+    ? ev.meta.cwd.split("/").filter(Boolean).pop()
+    : undefined;
+  const heading = ev.meta.title ?? cwdBase;
+  const titleParts = [ev.meta.agentId ?? "agent", shortSessionId(ev.sessionId)];
+  if (heading) {
+    titleParts.push(heading);
+  }
+  const tc = ev.raw as {
+    title?: unknown;
+    name?: unknown;
+    kind?: unknown;
+  };
+  const desc =
+    (typeof tc.title === "string" && tc.title) ||
+    (typeof tc.name === "string" && tc.name) ||
+    (typeof tc.kind === "string" && tc.kind) ||
+    "tool call";
+  return {
+    title: `🔒 ${titleParts.join(" · ")}`,
+    body: `Awaiting approval: ${desc}`,
+    urgency: "critical",
+  };
+}
 
 let loadCounter = 0;
 

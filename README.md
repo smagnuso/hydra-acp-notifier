@@ -1,6 +1,6 @@
 # hydra-acp-notifier
 
-Headless desktop-notification extension for [hydra-acp](https://github.com/smagnuso/hydra-acp). Always-on companion that fires `notify-send` / `osascript` (or a custom command) when sessions emit notable events — turn complete, by default — regardless of which interactive client you have attached.
+Headless desktop-notification extension for [hydra-acp](https://github.com/smagnuso/hydra-acp). Always-on companion that fires `notify-send` / `osascript` (or a custom command) when sessions emit notable events — turn complete and "waiting on approval for too long" by default — regardless of which interactive client you have attached.
 
 Runs as a daemon-managed process so notifications keep firing even when no interactive client is open.
 
@@ -59,7 +59,9 @@ is managed with `hydra-acp extensions start|stop|restart hydra-acp-notifier` and
 
 ## Default behavior (no config)
 
-Fires `notify-send` on `turn_complete` for every session, with:
+Fires `notify-send` on two events for every session:
+
+**1. `turn_complete`** — the agent finished a turn.
 - **Title**: `🐉 <agentId> · <short-session-id> · <session title or cwd-basename>`
   - `<short-session-id>` is the first 8 chars of the session id after the `hydra_session_` prefix is stripped — handy for telling apart multiple sessions on the same project. The trailing component is omitted if neither a session title nor a cwd is known.
 - **Body**: a friendly rendering of the stop reason (borrowed from [`agent-shell-attention`](https://github.com/ultronozm/agent-shell-attention.el)):
@@ -74,6 +76,13 @@ Fires `notify-send` on `turn_complete` for every session, with:
   | missing             | `Finished`                 |
   | anything else       | `Stop for unknown reason: <reason>` |
 
+**2. `awaiting_permission`** — a `session/request_permission` has been outstanding for `HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS` (default `5000`). Synthesized by the notifier when no client has answered within the delay.
+- **Title**: `🔒 <agentId> · <short-session-id> · <heading>` (same fallback chain).
+- **Body**: `Awaiting approval: <toolCall.title or .name or .kind, falls back to "tool call">`.
+- **Urgency**: `critical` (notify-send keeps the bubble sticky on Linux).
+
+If the matching `session/permission_resolved` arrives before the delay elapses, no notification fires.
+
 On macOS, `osascript` is used instead. The default works without any config file — drop one in to customize.
 
 ## Configure
@@ -83,9 +92,20 @@ On macOS, `osascript` is used instead. The default works without any config file
 ```js
 // ~/.hydra-acp/notifier.config.js
 export default function notify(ev) {
-  // ev.kind: "turn_complete" | "usage_update" | "session_info_update" | ...
+  // ev.kind: "turn_complete" | "awaiting_permission" | "usage_update" |
+  //          "session_info_update" | ...
   // ev.sessionId, ev.meta.cwd, ev.meta.agentId, ev.meta.title
-  // ev.raw: the raw session/update.update payload
+  // ev.raw: for session/update kinds, the update payload;
+  //         for "awaiting_permission", the toolCall object.
+
+  if (ev.kind === "awaiting_permission") {
+    // ev.raw.title / .name / .kind describe the pending tool call.
+    return {
+      title: `🔒 ${ev.meta.agentId ?? "agent"} needs you`,
+      body: `Awaiting: ${ev.raw.title ?? ev.raw.name ?? "tool call"}`,
+      urgency: "critical",
+    };
+  }
 
   if (ev.kind !== "turn_complete") {
     return null; // skip
@@ -164,14 +184,15 @@ curl -d "$2" -H "Title: $1" -H "Priority: default" ntfy.sh/your-topic
 | `HYDRA_ACP_WS_URL` | derived | Override WS endpoint |
 | `HYDRA_ACP_NOTIFIER_CONFIG` | `~/.hydra-acp/notifier.config.js` | Rule module path |
 | `HYDRA_ACP_NOTIFIER_POLL_MS` | `2000` | Session-discovery poll interval |
+| `HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS` | `5000` | Delay before firing the `awaiting_permission` notification |
 | `HYDRA_ACP_NOTIFY_CMD` | *(platform-default)* | Override the spawn command globally |
 | `DEBUG` | `false` | Verbose logging |
 
 ## How it works
 
 - Attaches to every live session (one WS per session, polled every 2s).
-- Listens for `session/update` notifications.
-- For each, calls your rule function and dispatches whatever it returns.
+- Listens for `session/update` notifications and dispatches per the rule.
+- Receives `session/request_permission` requests but never picks an option — instead, starts a timer of `HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS`. If the matching `session/permission_resolved` arrives first, the notifier replies `cancelled` (harmless — the daemon already settled the agent's call via the real responder). If the timer fires first, the notifier synthesizes an `awaiting_permission` event through the same rule pipeline.
 
-The notifier never sends prompts or answers permission requests — it just listens to `session/update`. The daemon explicitly excludes the originator from `turn_complete` broadcasts (see `hydra-acp/src/core/session.ts` `broadcastTurnComplete`). Since the notifier never sends prompts, it's always a non-originator and always sees every `turn_complete`.
+The notifier never picks an `optionId` on a permission request — it's a read-only watcher even when it holds a request open. The daemon excludes the originator from `turn_complete` broadcasts (see `hydra-acp/src/core/session.ts` `broadcastTurnComplete`). Since the notifier never sends prompts, it's always a non-originator and always sees every `turn_complete`.
 
