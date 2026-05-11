@@ -6,31 +6,73 @@ Runs as a daemon-managed process so notifications keep firing even when no inter
 
 ## Install
 
+From npm (recommended once published):
+
+```sh
+npm install -g @hydra-acp/notifier
+```
+
+This drops a `hydra-acp-notifier` binary on your PATH.
+
+Or from source:
+
 ```sh
 git clone git@github.com:smagnuso/hydra-acp-notifier.git ~/dev/hydra-acp-notifier
 cd ~/dev/hydra-acp-notifier
 npm install
 npm run build
-npm link
 ```
 
-Register in `~/.hydra-acp/config.json`:
+Register the extension with hydra. If installed via npm:
+
+```sh
+hydra-acp extensions add hydra-acp-notifier --command hydra-acp-notifier
+```
+
+Or pointed at a local build:
+
+```sh
+hydra-acp extensions add hydra-acp-notifier \
+  --command node \
+  --args ~/dev/hydra-acp-notifier/dist/index.js
+```
+
+That writes the equivalent entry into `~/.hydra-acp/config.json`:
 
 ```json
 {
   "extensions": {
-    "hydra-acp-notifier": {}
+    "hydra-acp-notifier": {
+      "command": ["node"],
+      "args": ["/home/you/dev/hydra-acp-notifier/dist/index.js"],
+      "enabled": true
+    }
   }
 }
 ```
 
-Then `hydra-acp daemon restart`. Logs land in `~/.hydra-acp/extensions/hydra-acp-notifier.log`.
+On `hydra-acp daemon start`, hydra spawns hydra-acp-notifier with these env
+vars set: `HYDRA_ACP_DAEMON_URL`, `HYDRA_ACP_TOKEN`, `HYDRA_ACP_WS_URL`.
+Stdout/stderr land in `~/.hydra-acp/extensions/hydra-acp-notifier.log`. Lifecycle
+is managed with `hydra-acp extensions start|stop|restart hydra-acp-notifier` and
+`hydra-acp extensions logs hydra-acp-notifier -f` to tail.
 
 ## Default behavior (no config)
 
 Fires `notify-send` on `turn_complete` for every session, with:
-- **Title**: `🐉 <agentId> · <cwd-basename>`
-- **Body**: `turn complete (<stopReason>)`
+- **Title**: `🐉 <agentId> · <short-session-id> · <session title or cwd-basename>`
+  - `<short-session-id>` is the first 8 chars of the session id after the `hydra_session_` prefix is stripped — handy for telling apart multiple sessions on the same project. The trailing component is omitted if neither a session title nor a cwd is known.
+- **Body**: a friendly rendering of the stop reason (borrowed from [`agent-shell-attention`](https://github.com/ultronozm/agent-shell-attention.el)):
+
+  | stopReason          | body                       |
+  |---------------------|----------------------------|
+  | `end_turn`          | `Finished`                 |
+  | `max_tokens`        | `Max token limit reached`  |
+  | `max_turn_requests` | `Exceeded request limit`   |
+  | `refusal`           | `Refused`                  |
+  | `cancelled`         | `Cancelled`                |
+  | missing             | `Finished`                 |
+  | anything else       | `Stop for unknown reason: <reason>` |
 
 On macOS, `osascript` is used instead. The default works without any config file — drop one in to customize.
 
@@ -96,8 +138,10 @@ Return `null` / `undefined` to skip. Throws are caught + logged + treated as ski
 
 ### Reload
 
+After editing `notifier.config.js`:
+
 ```sh
-kill -HUP $(cat ~/.hydra-acp/extensions/hydra-acp-notifier.pid)
+hydra-acp extensions restart hydra-acp-notifier
 ```
 
 ## Custom dispatcher (route everything to ntfy / Pushover / phone)
@@ -133,14 +177,3 @@ Observer role keeps the notifier out of `attached_clients` controller counts and
 
 The daemon explicitly excludes the originator from `turn_complete` broadcasts (see `hydra-acp/src/core/session.ts` `broadcastTurnComplete`). Since the notifier never sends prompts, it's always a non-originator and always sees every `turn_complete`.
 
-## Why this beats per-client notifications
-
-Any per-client notifier only fires while that client is attached. Centralizing in the daemon means one set of rules fires regardless of which (or how many) clients are connected, and survives client restarts.
-
-## Tests
-
-```sh
-npm test
-```
-
-Covers EventRouter dispatch / null / throw / async / meta / setRule / setMeta / DEFAULT_RULE behavior, plus rule loader file-missing / no-default-export paths.

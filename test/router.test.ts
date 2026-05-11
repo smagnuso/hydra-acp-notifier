@@ -201,7 +201,7 @@ test("DEFAULT_RULE: fires on turn_complete with agent + cwd in title", async () 
   const router = new EventRouter(
     DEFAULT_RULE,
     {
-      sessionId: "hydra_session_abc",
+      sessionId: "hydra_session_abcdef0123",
       cwd: "/home/me/proj",
       agentId: "claude-acp",
     },
@@ -212,8 +212,51 @@ test("DEFAULT_RULE: fires on turn_complete with agent + cwd in title", async () 
     update: { sessionUpdate: "turn_complete", stopReason: "end_turn" },
   });
   assert.equal(calls.length, 1);
-  assert.match(calls[0]?.title ?? "", /claude-acp.*proj/);
-  assert.match(calls[0]?.body ?? "", /end_turn/);
+  assert.equal(calls[0]?.title, "🐉 claude-acp · abcdef01 · proj");
+  assert.equal(calls[0]?.body, "Finished");
+});
+
+test("DEFAULT_RULE: prefers session title over cwd basename in heading", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    {
+      sessionId: "hydra_session_abcdef0123",
+      cwd: "/home/me/proj",
+      agentId: "claude-acp",
+      title: "Investigating flaky CI",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "turn_complete", stopReason: "max_tokens" },
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0]?.title,
+    "🐉 claude-acp · abcdef01 · Investigating flaky CI",
+  );
+  assert.equal(calls[0]?.body, "Max token limit reached");
+});
+
+test("DEFAULT_RULE: omits trailing heading when no title or cwd is known", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    {
+      sessionId: "hydra_session_abcdef0123",
+      agentId: "claude-acp",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "turn_complete" },
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.title, "🐉 claude-acp · abcdef01");
+  assert.equal(calls[0]?.body, "Finished");
 });
 
 test("DEFAULT_RULE: skips non-turn_complete events", async () => {

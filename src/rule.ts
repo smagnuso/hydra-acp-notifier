@@ -32,7 +32,25 @@ export type RuleFunction = (
 ) => Notification | null | undefined | Promise<Notification | null | undefined>;
 
 // Default rule when no config file is present: fire on turn_complete
-// with agent + cwd in the title.
+// with agent + session title in the heading and an agent-shell-attention-
+// style friendly stop-reason in the body.
+const STOP_REASON_TEXT: Record<string, string> = {
+  end_turn: "Finished",
+  max_tokens: "Max token limit reached",
+  max_turn_requests: "Exceeded request limit",
+  refusal: "Refused",
+  cancelled: "Cancelled",
+};
+
+const SESSION_ID_PREFIX = "hydra_session_";
+
+function shortSessionId(sessionId: string): string {
+  const stripped = sessionId.startsWith(SESSION_ID_PREFIX)
+    ? sessionId.slice(SESSION_ID_PREFIX.length)
+    : sessionId;
+  return stripped.slice(0, 8);
+}
+
 export const DEFAULT_RULE: RuleFunction = (ev) => {
   if (ev.kind !== "turn_complete") {
     return null;
@@ -40,12 +58,19 @@ export const DEFAULT_RULE: RuleFunction = (ev) => {
   const cwdBase = ev.meta.cwd
     ? ev.meta.cwd.split("/").filter(Boolean).pop()
     : undefined;
-  const titleParts = [ev.meta.agentId ?? "agent", cwdBase ?? ev.sessionId.slice(0, 8)];
+  const heading = ev.meta.title ?? cwdBase;
+  const titleParts = [ev.meta.agentId ?? "agent", shortSessionId(ev.sessionId)];
+  if (heading) {
+    titleParts.push(heading);
+  }
   const stopReason =
     typeof ev.raw.stopReason === "string" ? ev.raw.stopReason : undefined;
+  const body = stopReason
+    ? (STOP_REASON_TEXT[stopReason] ?? `Stop for unknown reason: ${stopReason}`)
+    : "Finished";
   const result: Notification = {
     title: `🐉 ${titleParts.join(" · ")}`,
-    body: stopReason ? `turn complete (${stopReason})` : "turn complete",
+    body,
   };
   return result;
 };
