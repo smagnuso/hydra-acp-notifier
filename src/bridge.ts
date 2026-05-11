@@ -26,7 +26,6 @@ export class NotifierBridge {
       sessionId: opts.meta.sessionId,
       daemonWsUrl: opts.daemonWsUrl,
       token: opts.token,
-      role: "observer",
     });
     this.router = new EventRouter(opts.getRule(), opts.meta, log);
   }

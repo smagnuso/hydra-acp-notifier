@@ -18,11 +18,6 @@ export interface AttachOptions {
   sessionId: string;
   daemonWsUrl: string;
   token: string;
-  // Defaults to observer — the notifier never sends prompts or answers
-  // permission requests, just receives session/update notifications.
-  // Observer role keeps us out of permission-request fan-out and the
-  // controller-count exposed in `attached_clients`.
-  role?: "controller" | "observer";
 }
 
 export interface AttachEvents {
@@ -199,7 +194,6 @@ export class AcpAttach extends EventEmitter<AttachEvents> {
         replayed?: number;
       }>("session/attach", {
         sessionId: this.opts.sessionId,
-        role: this.opts.role ?? "observer",
         historyPolicy: "none",
         clientInfo: { name: "hydra-acp-notifier", version: "0.1.0" },
       });

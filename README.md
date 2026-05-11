@@ -169,11 +169,9 @@ curl -d "$2" -H "Title: $1" -H "Priority: default" ntfy.sh/your-topic
 
 ## How it works
 
-- Attaches as `observer` to every live session (one WS per session, polled every 2s).
+- Attaches to every live session (one WS per session, polled every 2s).
 - Listens for `session/update` notifications.
 - For each, calls your rule function and dispatches whatever it returns.
 
-Observer role keeps the notifier out of `attached_clients` controller counts and the permission-request fan-out — it's read-only.
-
-The daemon explicitly excludes the originator from `turn_complete` broadcasts (see `hydra-acp/src/core/session.ts` `broadcastTurnComplete`). Since the notifier never sends prompts, it's always a non-originator and always sees every `turn_complete`.
+The notifier never sends prompts or answers permission requests — it just listens to `session/update`. The daemon explicitly excludes the originator from `turn_complete` broadcasts (see `hydra-acp/src/core/session.ts` `broadcastTurnComplete`). Since the notifier never sends prompts, it's always a non-originator and always sees every `turn_complete`.
 
