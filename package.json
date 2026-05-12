@@ -4,6 +4,10 @@
   "description": "Desktop notification extension for hydra-acp — fires on turn complete and other configurable session events.",
   "license": "MIT",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "files": [
     "dist",
     "README.md",
