@@ -173,6 +173,89 @@ test("setRule replaces the rule for subsequent events", async () => {
   assert.equal(calls[0]?.title, "new");
 });
 
+test("session_info_update rotates title for subsequent notifications", async () => {
+  const { fn, calls } = captureDispatch();
+  const seen: Array<string | undefined> = [];
+  const router = new EventRouter(
+    (ev) => {
+      seen.push(ev.meta.title);
+      return ev.kind === "turn_complete" ? { title: ev.meta.title ?? "?" } : null;
+    },
+    {
+      sessionId: "hydra_session_x",
+      agentId: "claude-acp",
+      title: "Initial",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "session_info_update", title: "Renamed" },
+  });
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "turn_complete" },
+  });
+  assert.deepEqual(seen, ["Renamed", "Renamed"]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.title, "Renamed");
+});
+
+test("session_info_update rotates agentId from _meta on /hydra switch", async () => {
+  const { fn, calls } = captureDispatch();
+  const seen: Array<string | undefined> = [];
+  const router = new EventRouter(
+    (ev) => {
+      seen.push(ev.meta.agentId);
+      return ev.kind === "turn_complete" ? { title: ev.meta.agentId ?? "?" } : null;
+    },
+    {
+      sessionId: "hydra_session_x",
+      agentId: "claude-acp",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: {
+      sessionUpdate: "session_info_update",
+      _meta: { "hydra-acp": { synthetic: true, agentId: "codex-acp" } },
+    },
+  });
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "turn_complete" },
+  });
+  assert.deepEqual(seen, ["codex-acp", "codex-acp"]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.title, "codex-acp");
+});
+
+test("session_info_update ignores agentId outside _meta['hydra-acp']", async () => {
+  const { fn, calls } = captureDispatch();
+  const seen: Array<string | undefined> = [];
+  const router = new EventRouter(
+    (ev) => {
+      seen.push(ev.meta.agentId);
+      return ev.kind === "turn_complete" ? { title: ev.meta.agentId ?? "?" } : null;
+    },
+    { sessionId: "hydra_session_x", agentId: "claude-acp" },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: {
+      sessionUpdate: "session_info_update",
+      agentId: "should-be-ignored",
+      _meta: { other: { agentId: "also-ignored" } },
+    },
+  });
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "turn_complete" },
+  });
+  assert.deepEqual(seen, ["claude-acp", "claude-acp"]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.title, "claude-acp");
+});
+
 test("setMeta updates the meta passed to the rule", async () => {
   const { fn, calls } = captureDispatch();
   const seen: Array<string | undefined> = [];

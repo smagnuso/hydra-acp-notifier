@@ -47,12 +47,38 @@ export class EventRouter {
     if (!kind) {
       return;
     }
+    // session_info_update may rotate title (top-level field, per ACP)
+    // and/or agentId (hydra extension under _meta["hydra-acp"], emitted
+    // on /hydra switch). Update our cached meta so notification titles
+    // for subsequent events reflect the new values.
+    if (kind === "session_info_update") {
+      this.applySessionInfoUpdate(update);
+    }
     await this.runRule({
       sessionId: this.meta.sessionId,
       kind,
       raw: update,
       meta: this.eventMeta(),
     });
+  }
+
+  private applySessionInfoUpdate(update: Record<string, unknown>): void {
+    const next: SessionMeta = { ...this.meta };
+    let changed = false;
+    if (typeof update.title === "string") {
+      if (next.title !== update.title) {
+        next.title = update.title;
+        changed = true;
+      }
+    }
+    const agentId = readHydraAgentId(update._meta);
+    if (agentId !== undefined && next.agentId !== agentId) {
+      next.agentId = agentId;
+      changed = true;
+    }
+    if (changed) {
+      this.meta = next;
+    }
   }
 
   // Fired by PermissionWatcher when a session/request_permission has
@@ -99,4 +125,16 @@ export class EventRouter {
     );
     this.dispatch(result);
   }
+}
+
+function readHydraAgentId(meta: unknown): string | undefined {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+    return undefined;
+  }
+  const ns = (meta as Record<string, unknown>)["hydra-acp"];
+  if (!ns || typeof ns !== "object" || Array.isArray(ns)) {
+    return undefined;
+  }
+  const v = (ns as Record<string, unknown>).agentId;
+  return typeof v === "string" ? v : undefined;
 }
