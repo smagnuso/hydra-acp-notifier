@@ -200,7 +200,7 @@ test("session_info_update rotates title for subsequent notifications", async () 
   assert.equal(calls[0]?.title, "Renamed");
 });
 
-test("session_info_update rotates agentId from _meta on /hydra switch", async () => {
+test("session_info_update rotates agentId from _meta on /hydra agent", async () => {
   const { fn, calls } = captureDispatch();
   const seen: Array<string | undefined> = [];
   const router = new EventRouter(

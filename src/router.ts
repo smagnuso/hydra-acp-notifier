@@ -49,7 +49,7 @@ export class EventRouter {
     }
     // session_info_update may rotate title (top-level field, per ACP)
     // and/or agentId (hydra extension under _meta["hydra-acp"], emitted
-    // on /hydra switch). Update our cached meta so notification titles
+    // on /hydra agent). Update our cached meta so notification titles
     // for subsequent events reflect the new values.
     if (kind === "session_info_update") {
       this.applySessionInfoUpdate(update);
