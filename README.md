@@ -80,7 +80,7 @@ Fires `notify-send` on two events for every session:
 - **Title**: `🔒 <agentId> · <short-session-id> · <heading>` (same fallback chain).
 - **Body**: `Awaiting approval: <toolCall.title or .name or .kind, falls back to "tool call">`.
 
-If the matching `session/permission_resolved` arrives before the delay elapses, no notification fires. The default uses normal urgency so the bubble auto-dismisses; set `urgency: "critical"` from your own rule if you want it sticky.
+If the matching `session/update` permission_resolved arrives before the delay elapses, no notification fires. The default uses normal urgency so the bubble auto-dismisses; set `urgency: "critical"` from your own rule if you want it sticky.
 
 On macOS, `osascript` is used instead. The default works without any config file — drop one in to customize.
 
@@ -191,7 +191,7 @@ curl -d "$2" -H "Title: $1" -H "Priority: default" ntfy.sh/your-topic
 
 - Attaches to every live session (one WS per session, polled every 2s).
 - Listens for `session/update` notifications and dispatches per the rule.
-- Receives `session/request_permission` requests but never picks an option — instead, starts a timer of `HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS`. If the matching `session/permission_resolved` arrives first, the notifier replies `cancelled` (harmless — the daemon already settled the agent's call via the real responder). If the timer fires first, the notifier synthesizes an `awaiting_permission` event through the same rule pipeline.
+- Receives `session/request_permission` requests but never picks an option — instead, starts a timer of `HYDRA_ACP_NOTIFIER_AWAITING_PERMISSION_MS`. If the matching `session/update` permission_resolved arrives first (RFD #533), the notifier replies `cancelled` (harmless — the daemon already settled the agent's call via the real responder). If the timer fires first, the notifier synthesizes an `awaiting_permission` event through the same rule pipeline.
 
 The notifier never picks an `optionId` on a permission request — it's a read-only watcher even when it holds a request open. The daemon excludes the originator from `turn_complete` broadcasts (see `hydra-acp/src/core/session.ts` `broadcastTurnComplete`). Since the notifier never sends prompts, it's always a non-originator and always sees every `turn_complete`.
 

@@ -3,7 +3,6 @@ import type {
   JsonRpcNotification,
   JsonRpcRequest,
   PermissionRequestParams,
-  PermissionResolvedParams,
 } from "./acp/protocol.js";
 import { PermissionWatcher } from "./permission-watcher.js";
 import { EventRouter, type SessionMeta } from "./router.js";
@@ -74,15 +73,23 @@ export class NotifierBridge {
   }
 
   private onNotification(n: JsonRpcNotification): void {
-    if (n.method === "session/update") {
-      const params = (n.params ?? {}) as Record<string, unknown>;
-      void this.router.onSessionUpdate(params);
+    if (n.method !== "session/update") {
       return;
     }
-    if (n.method === "session/permission_resolved") {
-      const params = (n.params ?? {}) as PermissionResolvedParams;
-      this.watcher.onResolved(params);
+    const params = (n.params ?? {}) as Record<string, unknown>;
+    const update = (params.update ?? {}) as {
+      sessionUpdate?: unknown;
+      toolCallId?: unknown;
+    };
+    if (update.sessionUpdate === "permission_resolved") {
+      const toolCallId =
+        typeof update.toolCallId === "string" ? update.toolCallId : undefined;
+      if (toolCallId) {
+        this.watcher.onResolved({ toolCallId });
+      }
+      return;
     }
+    void this.router.onSessionUpdate(params);
   }
 
   private onRequest(r: JsonRpcRequest): void {

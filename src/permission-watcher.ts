@@ -1,8 +1,5 @@
 import type { Logger } from "./util/log.js";
-import type {
-  PermissionRequestParams,
-  PermissionResolvedParams,
-} from "./acp/protocol.js";
+import type { PermissionRequestParams } from "./acp/protocol.js";
 
 export type RespondFn = (result: unknown) => void;
 export type OnAwaitingFn = (
@@ -17,8 +14,9 @@ interface Pending {
 
 // Tracks `session/request_permission` requests we've received but not
 // yet seen resolved. On request, start a timer. If the timer fires
-// before the matching `session/permission_resolved` arrives, invoke
-// `onAwaiting` so the router can dispatch a "still waiting" notification.
+// before the matching session/update permission_resolved arrives,
+// invoke `onAwaiting` so the router can dispatch a "still waiting"
+// notification.
 // On resolved (or shutdown), respond to the original request with
 // `cancelled` to clean up the daemon-side pending promise — harmless
 // because the daemon already settled the agent's call via whoever won
@@ -58,8 +56,8 @@ export class PermissionWatcher {
     this.pending.set(toolCallId, { toolCallId, respond, timer });
   }
 
-  onResolved(params: PermissionResolvedParams): void {
-    const toolCallId = params.toolCall?.toolCallId;
+  onResolved(params: { toolCallId: string }): void {
+    const { toolCallId } = params;
     if (!toolCallId) {
       return;
     }

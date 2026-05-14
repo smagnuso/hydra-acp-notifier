@@ -57,7 +57,7 @@ test("resolved-before-timer cancels timer and responds cancelled", async () => {
     silentLogger(),
   );
   watcher.onRequest(mkReq("tc_2"), (r) => responses.push(r));
-  watcher.onResolved({ toolCall: { toolCallId: "tc_2" } });
+  watcher.onResolved({ toolCallId: "tc_2" });
   await delay(80);
   assert.equal(fired.length, 0, "timer should not have fired");
   assert.equal(responses.length, 1);
@@ -72,7 +72,7 @@ test("onResolved with unknown toolCallId is a no-op", async () => {
     (tc) => fired.push(tc),
     silentLogger(),
   );
-  watcher.onResolved({ toolCall: { toolCallId: "nope" } });
+  watcher.onResolved({ toolCallId: "nope" });
   await delay(10);
   assert.equal(fired.length, 0);
   assert.equal(responses.length, 0);
