@@ -98,6 +98,9 @@ export class NotifierBridge {
       this.watcher.onRequest(params, (result) => this.attach.reply(r.id, result));
       return;
     }
-    this.attach.replyError(r.id, -32601, `method not implemented: ${r.method}`);
+    // hydra-acp broadcasts agent→client requests to every attached
+    // client and resolves on the first response. Any client that
+    // isn't the intended responder must stay silent — replying -32601
+    // would race the real client.
   }
 }
