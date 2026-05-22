@@ -58,6 +58,11 @@ export const DEFAULT_RULE: RuleFunction = (ev) => {
   if (ev.kind !== "turn_complete") {
     return null;
   }
+  // Skip cancellations triggered by hydra-acp/amend_prompt: the user
+  // walked back the prompt, not the turn.
+  if (isAmendedTurn(ev.raw)) {
+    return null;
+  }
   const cwdBase = ev.meta.cwd
     ? ev.meta.cwd.split("/").filter(Boolean).pop()
     : undefined;
@@ -77,6 +82,18 @@ export const DEFAULT_RULE: RuleFunction = (ev) => {
   };
   return result;
 };
+
+function isAmendedTurn(raw: Record<string, unknown>): boolean {
+  const meta = raw._meta;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+    return false;
+  }
+  const ns = (meta as Record<string, unknown>)["hydra-acp"];
+  if (!ns || typeof ns !== "object" || Array.isArray(ns)) {
+    return false;
+  }
+  return (ns as Record<string, unknown>).amended != null;
+}
 
 function defaultAwaitingPermission(ev: NotifyEvent): Notification {
   const cwdBase = ev.meta.cwd

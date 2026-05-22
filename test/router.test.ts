@@ -342,6 +342,53 @@ test("DEFAULT_RULE: omits trailing heading when no title or cwd is known", async
   assert.equal(calls[0]?.body, "Finished");
 });
 
+test("DEFAULT_RULE: skips turn_complete carrying the amended _meta marker", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    {
+      sessionId: "hydra_session_abcdef0123",
+      cwd: "/home/me/proj",
+      agentId: "claude-acp",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: {
+      sessionUpdate: "turn_complete",
+      stopReason: "cancelled",
+      _meta: {
+        "hydra-acp": {
+          amended: {
+            cancelledMessageId: "m1",
+            newMessageId: "m2",
+          },
+        },
+      },
+    },
+  });
+  assert.equal(calls.length, 0);
+});
+
+test("DEFAULT_RULE: still fires on plain cancelled turn_complete with no amend marker", async () => {
+  const { fn, calls } = captureDispatch();
+  const router = new EventRouter(
+    DEFAULT_RULE,
+    {
+      sessionId: "hydra_session_abcdef0123",
+      agentId: "claude-acp",
+    },
+    silentLogger(),
+    fn,
+  );
+  await router.onSessionUpdate({
+    update: { sessionUpdate: "turn_complete", stopReason: "cancelled" },
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.body, "Cancelled");
+});
+
 test("DEFAULT_RULE: skips non-turn_complete events", async () => {
   const { fn, calls } = captureDispatch();
   const router = new EventRouter(
