@@ -55,7 +55,7 @@ On `hydra-acp daemon start`, hydra spawns hydra-acp-notifier with these env
 vars set: `HYDRA_ACP_DAEMON_URL`, `HYDRA_ACP_TOKEN`, `HYDRA_ACP_WS_URL`.
 Stdout/stderr land in `~/.hydra-acp/extensions/hydra-acp-notifier.log`. Lifecycle
 is managed with `hydra-acp extensions start|stop|restart hydra-acp-notifier` and
-`hydra-acp extensions logs hydra-acp-notifier -f` to tail.
+`hydra-acp extensions log hydra-acp-notifier -f` to tail.
 
 ## Default behavior (no config)
 
