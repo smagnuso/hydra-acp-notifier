@@ -58,7 +58,7 @@ export const DEFAULT_RULE: RuleFunction = (ev) => {
   if (ev.kind !== "turn_complete") {
     return null;
   }
-  // Skip cancellations triggered by hydra-acp/amend_prompt: the user
+  // Skip cancellations triggered by hydra-acp/prompt/amend: the user
   // walked back the prompt, not the turn.
   if (isAmendedTurn(ev.raw)) {
     return null;
