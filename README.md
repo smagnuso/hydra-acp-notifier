@@ -9,10 +9,10 @@ Runs as a daemon-managed process so notifications keep firing even when no inter
 From npm (recommended once published):
 
 ```sh
-npm install -g @hydra-acp/notifier
+npm install -g @hydra-acp/cli @hydra-acp/notifier
 ```
 
-This drops a `hydra-acp-notifier` binary on your PATH.
+This drops the `hydra-acp` (and `hydra`) CLI plus a `hydra-acp-notifier` binary on your PATH.
 
 Or from source:
 
