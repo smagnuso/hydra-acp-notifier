@@ -9,7 +9,7 @@ export interface HydraSessionInfo {
   title: string | undefined;
   attachedClients: number;
   updatedAt: string;
-  status: "live" | "cold";
+  status: "warm" | "cold";
   originatingClient?: { name: string; version?: string };
 }
 
@@ -65,10 +65,10 @@ export class HydraDiscovery {
       const body = (await r.json()) as { sessions: HydraSessionInfo[] };
       // The daemon's default `/v1/sessions` view already filters out
       // non-interactive rows (cat one-shots, editor-spawned empty
-      // sessions). Just skip cold rows here — notifier only handles live.
+      // sessions). Just skip cold rows here — notifier only handles warm.
       const seen = new Map<string, HydraSessionInfo>();
       for (const s of body.sessions) {
-        if (s.status !== "live") {
+        if (s.status !== "warm") {
           continue;
         }
         seen.set(s.sessionId, s);
