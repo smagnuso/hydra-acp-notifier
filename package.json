@@ -1,7 +1,7 @@
 {
   "name": "@hydra-acp/notifier",
-  "version": "0.1.17",
-  "description": "Desktop notification extension for hydra-acp \u2014 fires on turn complete and other configurable session events.",
+  "version": "0.1.18",
+  "description": "Desktop notification extension for hydra-acp — fires on turn complete and other configurable session events.",
   "license": "MIT",
   "type": "module",
   "publishConfig": {
