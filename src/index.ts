@@ -7,6 +7,7 @@ import { HydraDiscovery } from "./discovery.js";
 import { NotifierBridge } from "./bridge.js";
 import { DEFAULT_RULE, loadRule, type RuleFunction } from "./rule.js";
 import { logger, setDebug } from "./util/log.js";
+import { watchConfigPath } from "./util/watch.js";
 
 const log = logger("main");
 
@@ -77,8 +78,10 @@ async function main(): Promise<void> {
   });
   discovery.start();
 
-  process.on("SIGHUP", () => {
-    log.info(`SIGHUP — reloading rule from ${config.ruleConfigPath}`);
+  // Bridges read the rule through a thunk, so the next event after a reload
+  // completes uses the new function.
+  const reloadRule = (origin: string): void => {
+    log.info(`${origin} — reloading rule from ${config.ruleConfigPath}`);
     loadRule(config.ruleConfigPath)
       .then((rule) => {
         currentRule = rule;
@@ -90,10 +93,21 @@ async function main(): Promise<void> {
       .catch((err: unknown) => {
         log.warn(`rule reload failed: ${(err as Error).message}`);
       });
+  };
+
+  // A save reloads the rule on every platform. SIGHUP stays for a manual
+  // reload where it exists; Windows has no way to send one, so the watcher is
+  // the only reload path there.
+  const configWatcher = watchConfigPath({
+    path: config.ruleConfigPath,
+    onChange: () => reloadRule("config file changed"),
+    onError: (err) => log.warn(`config watcher error: ${err.message}`),
   });
+  process.on("SIGHUP", () => reloadRule("SIGHUP"));
 
   const shutdown = (sig: string): void => {
     log.info(`${sig} received — shutting down`);
+    configWatcher.stop();
     discovery.stop();
     for (const bridge of bridges.values()) {
       bridge.stop();

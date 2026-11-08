@@ -92,7 +92,7 @@ On macOS, `osascript` is used instead. On Windows, a toast notification is shown
 - If a toast fails to show, the reason is written to the extension log (`hydra-acp extensions log hydra-acp-notifier`).
 - Notification text is passed to PowerShell through the environment, never built into the script, so characters such as quotes, `<`, `&` and `$` in a title or body appear as written.
 - `HYDRA_ACP_NOTIFY_CMD` must name an `.exe`. Node refuses to start a `.cmd` or `.bat` file directly, and running one through `cmd.exe` would mean interpolating agent-authored text into a command line. Point it at a small `.exe`, or at `powershell.exe` with your own script.
-- There is no `SIGHUP` on Windows, so a changed rule file is picked up by restarting the extension: `hydra-acp extensions restart hydra-acp-notifier`.
+- There is no `SIGHUP` on Windows. A changed rule file is reloaded by the file watcher; see [Reload](#reload).
 
 ## Configure
 
@@ -167,11 +167,17 @@ Return `null` / `undefined` to skip. Throws are caught + logged + treated as ski
 
 ### Reload
 
-After editing `notifier.config.js`:
+Edits to `notifier.config.js` are picked up automatically: the notifier watches the file and re-imports it on every save. The next event after the reload completes uses the fresh rule.
+
+If `fs.watch` is unreliable on your filesystem (NFS, some network mounts, certain container layouts), reload manually:
 
 ```sh
 hydra-acp extensions restart hydra-acp-notifier
+# or, lighter, re-import the rule without dropping the session attaches:
+kill -HUP $(cat ~/.hydra-acp/extensions/hydra-acp-notifier.pid)
 ```
+
+Windows has no `SIGHUP`, so there the file watcher is the reload path and the restart is the manual fallback.
 
 ## Custom dispatcher (route everything to ntfy / Pushover / phone)
 
