@@ -44,6 +44,12 @@ const STOP_REASON_TEXT: Record<string, string> = {
 
 const SESSION_ID_PREFIX = "hydra_session_";
 
+// The last component of a directory, whichever separator the session's host
+// uses: the daemon may be on Windows, where `C:\Users\x\proj` has no "/".
+export function lastSegment(dir: string): string | undefined {
+  return dir.split(/[\\/]/).filter(Boolean).pop();
+}
+
 function shortSessionId(sessionId: string): string {
   const stripped = sessionId.startsWith(SESSION_ID_PREFIX)
     ? sessionId.slice(SESSION_ID_PREFIX.length)
@@ -63,9 +69,7 @@ export const DEFAULT_RULE: RuleFunction = (ev) => {
   if (isAmendedTurn(ev.raw)) {
     return null;
   }
-  const cwdBase = ev.meta.cwd
-    ? ev.meta.cwd.split("/").filter(Boolean).pop()
-    : undefined;
+  const cwdBase = ev.meta.cwd ? lastSegment(ev.meta.cwd) : undefined;
   const heading = ev.meta.title ?? cwdBase;
   const titleParts = [ev.meta.agentId ?? "agent", shortSessionId(ev.sessionId)];
   if (heading) {
@@ -96,9 +100,7 @@ function isAmendedTurn(raw: Record<string, unknown>): boolean {
 }
 
 function defaultAwaitingPermission(ev: NotifyEvent): Notification {
-  const cwdBase = ev.meta.cwd
-    ? ev.meta.cwd.split("/").filter(Boolean).pop()
-    : undefined;
+  const cwdBase = ev.meta.cwd ? lastSegment(ev.meta.cwd) : undefined;
   const heading = ev.meta.title ?? cwdBase;
   const titleParts = [ev.meta.agentId ?? "agent", shortSessionId(ev.sessionId)];
   if (heading) {

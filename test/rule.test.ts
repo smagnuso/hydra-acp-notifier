@@ -49,3 +49,23 @@ test("loadRule falls back to DEFAULT_RULE when no default export", async () => {
 // runner used by `npm test` ignores the cache-busting query param, so
 // the assertion would fail here despite working at runtime. See the
 // matching comment in hydra-acp-approver.
+
+test("the default rule names the project from a Windows cwd", () => {
+  const out = DEFAULT_RULE({
+    sessionId: "hydra_session_abcdef123456",
+    kind: "turn_complete",
+    raw: {},
+    meta: { cwd: "C:\\Users\\sam\\dev\\proj", agentId: "claude" },
+  }) as { title: string };
+  assert.equal(out.title, "🐉 claude · abcdef12 · proj");
+});
+
+test("the default rule names the project from a POSIX cwd and ignores a trailing slash", () => {
+  const out = DEFAULT_RULE({
+    sessionId: "hydra_session_abcdef123456",
+    kind: "awaiting_permission",
+    raw: {},
+    meta: { cwd: "/home/sam/dev/proj/", agentId: "claude" },
+  }) as { title: string };
+  assert.equal(out.title, "🔒 claude · abcdef12 · proj");
+});

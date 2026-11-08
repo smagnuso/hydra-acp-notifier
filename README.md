@@ -82,7 +82,17 @@ Fires `notify-send` on two events for every session:
 
 If the matching `session/update` permission_resolved arrives before the delay elapses, no notification fires. The default uses normal urgency so the bubble auto-dismisses; set `urgency: "critical"` from your own rule if you want it sticky.
 
-On macOS, `osascript` is used instead. The default works without any config file — drop one in to customize.
+On macOS, `osascript` is used instead. On Windows, a toast notification is shown through Windows PowerShell (`powershell.exe` 5.1, which ships with Windows 10 and 11). The default works without any config file — drop one in to customize.
+
+### Windows
+
+- The toast is attributed to **Windows PowerShell** in the notification header. A toast is only shown for an app id Windows already knows, and registering a hydra one would mean creating a Start Menu shortcut, which this package doesn't do.
+- `urgency` and `icon` are ignored, as they are on macOS.
+- Windows' Focus Assist / Do Not Disturb applies as usual: a suppressed toast goes to the notification center instead of the screen.
+- If a toast fails to show, the reason is written to the extension log (`hydra-acp extensions log hydra-acp-notifier`).
+- Notification text is passed to PowerShell through the environment, never built into the script, so characters such as quotes, `<`, `&` and `$` in a title or body appear as written.
+- `HYDRA_ACP_NOTIFY_CMD` must name an `.exe`. Node refuses to start a `.cmd` or `.bat` file directly, and running one through `cmd.exe` would mean interpolating agent-authored text into a command line. Point it at a small `.exe`, or at `powershell.exe` with your own script.
+- There is no `SIGHUP` on Windows, so a changed rule file is picked up by restarting the extension: `hydra-acp extensions restart hydra-acp-notifier`.
 
 ## Configure
 
